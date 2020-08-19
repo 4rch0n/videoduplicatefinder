@@ -229,7 +229,7 @@
     <value>Select 100% Identical Except Size (Keep Smallest)</value>
   </data>
   <data name="SelectLowestDurationLowestQualityKeepLongestBestQuality" xml:space="preserve">
-    <value>Select Lowest Duration / Lowest Quality (Keep longest / Best Quality)</value>
+    <value>Select Lowest Quality (Keep Best Quality / Longest)</value>
   </data>
   <data name="DeleteSelection" xml:space="preserve">
     <value>Delete Selection</value>

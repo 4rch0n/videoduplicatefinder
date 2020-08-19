@@ -18,6 +18,7 @@ using MahApps.Metro.Controls.Dialogs;
 using VideoDuplicateFinder.Windows.Data;
 using VideoDuplicateFinderWindows.Data;
 using VideoDuplicateFinderWindows.MVVM;
+using static System.Windows.Forms.MessageBox;
 
 // ReSharper disable once CheckNamespace
 namespace VideoDuplicateFinderWindows {
@@ -542,41 +543,78 @@ namespace VideoDuplicateFinderWindows {
 					if (blackListGroupID.Contains(first.GroupId)) continue; //Dup has been handled already
 					var l = Duplicates.Where(d => d.EqualsButQuality(first) && !d.Path.Equals(first.Path));
 					var dupMods = l as List<DuplicateItemViewModel> ?? l.ToList();
+          
 					if (!dupMods.Any()) continue;
 					dupMods.Insert(0, first);
-
+          
 					var keep = dupMods[0];
-					//TODO: Make this order become an option for the user
-					//Duration first
-					if (!keep.IsImage && keep.Duration != TimeSpan.Zero)
-						for (int i = 1; i < dupMods.Count; i++) {
-							if (dupMods[i].Duration.TrimMiliseconds() > keep.Duration.TrimMiliseconds())
-								keep = dupMods[i];
-						}
-					//resolution next, but only when keep is unchanged
-					if (keep.Path.Equals(dupMods[0].Path))
-						for (int i = 1; i < dupMods.Count; i++) {
-							if (dupMods[i].FrameSizeInt > keep.FrameSizeInt)
-								keep = dupMods[i];
-						}
-					//fps next, but only when keep is unchanged
-					if (keep.Path.Equals(dupMods[0].Path) && !keep.IsImage)
-						for (int i = 1; i < dupMods.Count; i++) {
-							if (dupMods[i].Fps > keep.Fps)
-								keep = dupMods[i];
-						}
-					//Bitrate next, but only when keep is unchanged
-					if (keep.Path.Equals(dupMods[0].Path) && !keep.IsImage)
-						for (int i = 1; i < dupMods.Count; i++) {
-							if (dupMods[i].BitRateKbs > keep.BitRateKbs)
-								keep = dupMods[i];
-						}
-					//Audio Bitrate next, but only when keep is unchanged
-					if (keep.Path.Equals(dupMods[0].Path) && !keep.IsImage)
-						for (int i = 1; i < dupMods.Count; i++) {
-							if (dupMods[i].AudioSampleRate > keep.AudioSampleRate)
-								keep = dupMods[i];
-						}
+          bool stopComp = false;
+          
+          // Comp by resolution
+          if (!stopComp)
+            for (int i = 1; i < dupMods.Count; i++) {
+              if (dupMods[i].FrameSizeInt - keep.FrameSizeInt >= 16) {
+                keep = dupMods[i];
+                stopComp = true;
+              }
+            }
+          
+          // Comp by fps
+          var compByFps = new List<DuplicateItemViewModel>();
+          if(!stopComp && !keep.IsImage) {
+            compByFps.Add(keep);
+            for (int i = 1; i < dupMods.Count; i++) {
+              if (Math.Abs(dupMods[i].FrameSizeInt - keep.FrameSizeInt) <= 16) {
+                compByFps.Add(dupMods[i]);
+              }
+            }
+          }
+            
+          if (!stopComp && !keep.IsImage)
+            for (int i = 1; i < compByFps.Count; i++) {
+              if (((compByFps[i].Fps - keep.Fps) >= 1) && ((compByFps[i].BitRateKbs - keep.BitRateKbs) > 499)) {
+                keep = dupMods[i];
+                stopComp = true;
+              }
+            }
+          
+          // Comp by bitrate
+          var compByBitrate = new List<DuplicateItemViewModel>();
+          if(!stopComp && !keep.IsImage) {
+            compByBitrate.Add(keep);
+            for (int i = 1; i < compByFps.Count; i++) {
+              if (Math.Abs(compByFps[i].Fps - keep.Fps) <= 2) {
+                compByBitrate.Add(compByFps[i]);
+              }
+            }
+          }
+          
+          if (!stopComp && !keep.IsImage)
+            for (int i = 1; i < compByBitrate.Count; i++) {
+              if (compByBitrate[i].BitRateKbs > keep.BitRateKbs) {
+                keep = compByBitrate[i];
+                stopComp = true;
+              }
+            }
+
+          // Comp by duration
+          var compByDuration = new List<DuplicateItemViewModel>();
+          if(!stopComp && !keep.IsImage) {
+            compByDuration.Add(keep);
+            for (int i = 1; i < compByBitrate.Count; i++) {
+              if (Math.Abs(compByBitrate[i].BitRateKbs - keep.BitRateKbs) <= 200) {
+                compByDuration.Add(compByBitrate[i]);
+              }
+            }
+          }
+          
+          if (!stopComp && !keep.IsImage)
+            for (int i = 1; i < compByDuration.Count; i++) {
+              if (compByDuration[i].Duration.TrimMiliseconds() > keep.Duration.TrimMiliseconds()){
+                keep = compByDuration[i];
+                stopComp = true;
+              }
+            }
 
 					keep.Checked = false;
 					for (int i = 0; i < dupMods.Count; i++) {
